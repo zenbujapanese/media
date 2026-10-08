@@ -1,0 +1,91 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Zenbu Motion Pack preview</title>
+<style>
+  :root { --red: #C60121; --ink: #1C1B1B; --paper: #FCF9FA; }
+  body { margin: 0; font-family: -apple-system, system-ui, sans-serif; background: #111; color: #eee; }
+  header { padding: 28px 32px 8px; }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  header p { margin: 0; color: #999; font-size: 14px; }
+  .controls { padding: 8px 32px 16px; display: flex; gap: 10px; align-items: center; font-size: 13px; color: #bbb; }
+  .controls button { background: #222; color: #ddd; border: 1px solid #333; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+  .controls button.on { background: var(--red); border-color: var(--red); color: #fff; }
+  section { padding: 12px 32px 28px; border-top: 1px solid #222; }
+  h2 { font-size: 15px; font-weight: 600; margin: 8px 0 14px; color: #ccc; }
+  .grid { display: flex; flex-wrap: wrap; gap: 14px; }
+  figure { margin: 0; width: 300px; }
+  figure.v { width: 200px; }
+  .frame { background: #888; border-radius: 10px; overflow: hidden; aspect-ratio: 16 / 9; display: grid; place-items: center; }
+  figure.v .frame { aspect-ratio: 9 / 16; }
+  .checker .frame { background: repeating-conic-gradient(#6a6a6a 0 25%, #8a8a8a 0 50%) 0 0 / 24px 24px; }
+  video, img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  figcaption { font-size: 12px; color: #9a9a9a; margin-top: 6px; word-break: break-all; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Zenbu Japanese — Motion Pack</h1>
+  <p>Alpha clips play from the .webm on a checkerboard. Hover to play, or press Play all.</p>
+</header>
+<div class="controls">
+  <button id="all">Play all</button>
+  <span>Preview background for alpha clips:</span>
+  <button data-bg="checker" class="on">Checker</button>
+  <button data-bg="#1C1B1B">Ink</button>
+  <button data-bg="#FCF9FA">Paper</button>
+  <button data-bg="#2d6a9f">Footage blue</button>
+</div>
+<div id="root"></div>
+<script>
+const groups = [
+  ['01-intro', ['intro-9x16-red.mp4','intro-9x16-ink.mp4','intro-9x16-paper.mp4','bumper-9x16-red.mp4','intro-9x16-alpha.webm','intro-16x9-red.mp4','intro-16x9-ink.mp4','intro-16x9-paper.mp4','bumper-16x9-ink.mp4','intro-16x9-alpha.webm']],
+  ['02-sting', ['sting-9x16-alpha.webm','sting-9x16-alpha-exit.webm','sting-9x16-red.mp4','sting-9x16-ink.mp4','sting-16x9-alpha.webm','sting-16x9-alpha-exit.webm','sting-16x9-red.mp4','sting-16x9-ink.mp4']],
+  ['03-transitions', ['transition-stamp-9x16.webm','transition-wipe-9x16.webm','transition-stamp-16x9.webm','transition-wipe-16x9.webm']],
+  ['04-outro', ['outro-9x16-ink.mp4','outro-9x16-red.mp4','outro-9x16-paper.mp4','outro-16x9-ink.mp4','outro-16x9-red.mp4','outro-16x9-paper.mp4','outro-16x9-ink-fadeout.mp4']],
+  ['05-lower-third', ['lower-third-9x16-alpha.webm','lower-third-16x9-alpha.webm']],
+  ['06-cta', ['cta-follow-9x16-alpha.webm','cta-link-in-bio-9x16-alpha.webm','cta-follow-16x9-alpha.webm','cta-link-in-bio-16x9-alpha.webm']],
+  ['07-background-loops', ['bg-loop-9x16-ink.mp4','bg-loop-9x16-paper.mp4','bg-loop-9x16-red.mp4','bg-loop-16x9-ink.mp4','bg-loop-16x9-paper.mp4','bg-loop-16x9-red.mp4']],
+  ['08-stills', ['title-card-9x16-ink.png','title-card-9x16-red.png','title-card-9x16-paper.png','title-card-16x9-ink.png','title-card-16x9-red.png','title-card-16x9-paper.png','thumbnail-base-1920x1080-ink.png','thumbnail-base-1920x1080-red.png','endscreen-guide-16x9.png']],
+  ['09-logo-lockups', ['lockup-horizontal-ink.png','lockup-horizontal-white.png','lockup-stacked-ink.png','lockup-stacked-white.png']],
+  ['10-watermarks', ['zenbu-mark-color-512.png','zenbu-mark-white-512.png','zenbu-mark-ink-512.png','corner-bug-9x16-white.png','corner-bug-16x9-white.png']]
+]
+const root = document.getElementById('root')
+for (const [dir, files] of groups) {
+  const sec = document.createElement('section')
+  sec.innerHTML = `<h2>${dir}</h2><div class="grid"></div>`
+  const grid = sec.querySelector('.grid')
+  for (const f of files) {
+    const fig = document.createElement('figure')
+    const vertical = f.includes('9x16') || f.includes('stacked')
+    const alpha = f.endsWith('.webm') || f.endsWith('.png')
+    fig.className = (vertical ? 'v ' : '') + (alpha ? 'checker' : '')
+    const src = `${dir}/${f}`
+    const media = f.endsWith('.png') ? `<img src="${src}" loading="lazy">` : `<video src="${src}" muted loop playsinline preload="metadata"></video>`
+    fig.innerHTML = `<div class="frame">${media}</div><figcaption>${f}</figcaption>`
+    grid.appendChild(fig)
+  }
+  root.appendChild(sec)
+}
+for (const v of document.querySelectorAll('video')) {
+  v.addEventListener('mouseenter', () => { v.currentTime = 0; v.play() })
+  v.addEventListener('mouseleave', () => { if (!playAll) v.pause() })
+}
+let playAll = false
+document.getElementById('all').addEventListener('click', e => {
+  playAll = !playAll
+  e.target.classList.toggle('on', playAll)
+  document.querySelectorAll('video').forEach(v => playAll ? v.play() : v.pause())
+})
+document.querySelectorAll('[data-bg]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-bg]').forEach(x => x.classList.remove('on'))
+  b.classList.add('on')
+  const bg = b.dataset.bg
+  document.querySelectorAll('.checker .frame').forEach(fr => {
+    fr.style.background = bg === 'checker' ? '' : bg
+  })
+}))
+</script>
+</body>
+</html>

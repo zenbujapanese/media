@@ -1,0 +1,381 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Zenbu motion scenes</title>
+<style>
+  @font-face { font-family: Geist; src: url(fonts/Geist.woff2) format('woff2'); font-weight: 100 900; font-display: block; }
+  :root {
+    --red: #C60121; --red-2: #D33B50; --ink: #1C1B1B; --ink-2: #242323; --paper: #FCF9FA; --white: #FFFFFF;
+  }
+  html, body { margin: 0; padding: 0; background: transparent; }
+  body { font-family: Geist, "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif; -webkit-font-smoothing: antialiased; }
+  #stage { position: relative; overflow: hidden; }
+  .a { position: absolute; }
+  .fill { position: absolute; inset: 0; }
+  .sticker { background: url(img/sticker.png) center / contain no-repeat; }
+  .mono-white { background: url(img/sticker-mono-white.png) center / contain no-repeat; }
+  .mono-ink { background: url(img/sticker-mono-ink.png) center / contain no-repeat; }
+  .txt { white-space: nowrap; line-height: 1; }
+  .wordmark { font-weight: 700; letter-spacing: -0.03em; }
+  .sub { font-weight: 500; letter-spacing: 0.01em; }
+  .kicker { font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; }
+  .ring { border-radius: 50%; border: 6px solid currentColor; box-sizing: border-box; }
+  .pill { display: flex; align-items: center; border-radius: 999px; box-sizing: border-box; }
+  .tag { border-radius: 28px; box-sizing: border-box; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script>
+const q = new URLSearchParams(location.search)
+const P = {
+  scene: q.get('scene') || 'intro',
+  ar: q.get('ar') || '9x16',
+  bg: q.get('bg') || 'red',
+  l1: q.get('l1') || 'Zenbu Japanese',
+  l2: q.get('l2') || 'zenbujapanese.com',
+  cta: q.get('cta') || 'Follow for more',
+  tagline: q.get('tagline') || 'Dictionary · Reader · Translator',
+  url: q.get('url') || 'zenbujapanese.com',
+  store: q.get('store') || 'Free on iPhone',
+  title: q.get('title') || '',
+  exit: q.get('exit') === '1',
+  dur: Number(q.get('dur') || 0)
+}
+const SIZE = { '9x16': [1080, 1920], '16x9': [1920, 1080], '1x1': [1080, 1080], 'lockup-h': [3200, 800], 'lockup-v': [2200, 1500] }
+const [W, H] = SIZE[P.ar]
+const V = P.ar === '9x16' || P.ar === 'lockup-v'
+const BG = { red: 'var(--red)', ink: 'var(--ink)', paper: 'var(--paper)', none: 'transparent' }
+const FG = { red: '#FFFFFF', ink: '#FCF9FA', paper: '#1C1B1B', none: '#FFFFFF' }
+const MUTED = { red: 'rgba(255,255,255,0.78)', ink: 'rgba(252,249,250,0.66)', paper: 'rgba(28,27,27,0.62)', none: 'rgba(255,255,255,0.8)' }
+const fg = FG[P.bg], muted = MUTED[P.bg]
+
+const stage = document.getElementById('stage')
+stage.style.width = W + 'px'; stage.style.height = H + 'px'
+stage.style.background = BG[P.bg]
+let total = 0
+
+const EASE = {
+  out: 'cubic-bezier(0.16, 1, 0.3, 1)',
+  back: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+  backSoft: 'cubic-bezier(0.34, 1.3, 0.64, 1)',
+  in: 'cubic-bezier(0.7, 0, 0.84, 0)',
+  inOut: 'cubic-bezier(0.65, 0, 0.35, 1)',
+  linear: 'linear'
+}
+
+function node(cls, style, parent = stage) {
+  const d = document.createElement('div')
+  d.className = cls
+  Object.assign(d.style, style)
+  parent.appendChild(d)
+  return d
+}
+function box(x, y, w, h, cls = '', style = {}, parent = stage) {
+  const outer = node('a', { left: x - w / 2 + 'px', top: y - h / 2 + 'px', width: w + 'px', height: h + 'px' }, parent)
+  const inner = node('fill ' + cls, style, outer)
+  return inner
+}
+function text(x, y, str, size, cls, style = {}, anchor = 'center', parent = stage) {
+  const d = node('a txt ' + cls, { fontSize: size + 'px', color: fg, ...style }, parent)
+  d.textContent = str
+  const w = d.getBoundingClientRect().width, h = d.getBoundingClientRect().height
+  const left = anchor === 'left' ? x : anchor === 'right' ? x - w : x - w / 2
+  const outer = node('a', { left: left + 'px', top: y - h / 2 + 'px', width: w + 'px', height: h + 'px' }, parent)
+  d.style.left = '0'; d.style.top = '0'
+  outer.appendChild(d)
+  return d
+}
+function anim(el, frames, { at = 0, dur = 500, ease = EASE.out, fill = 'both' } = {}) {
+  const a = el.animate(frames, { delay: at, duration: dur, easing: ease, fill })
+  total = Math.max(total, at + dur)
+  return a
+}
+function hold(ms) { total = Math.max(total, ms) }
+function hidden(el) { el.style.opacity = '0' }
+
+function stampIn(el, { at = 0, dur = 520, from = 2.2, rot = 8 } = {}) {
+  anim(el, [
+    { transform: `scale(${from}) rotate(${rot}deg)`, opacity: 0, offset: 0 },
+    { opacity: 1, offset: 0.18 },
+    { transform: 'scale(0.97) rotate(0deg)', opacity: 1, offset: 0.78 },
+    { transform: 'scale(1) rotate(0deg)', opacity: 1, offset: 1 }
+  ], { at, dur, ease: EASE.out })
+}
+function popIn(el, { at = 0, dur = 560, rot = -10 } = {}) {
+  anim(el, [
+    { transform: `scale(0) rotate(${rot}deg)`, opacity: 0, offset: 0 },
+    { opacity: 1, offset: 0.2 },
+    { transform: 'scale(1) rotate(0deg)', opacity: 1, offset: 1 }
+  ], { at, dur, ease: EASE.back })
+}
+function popOut(el, { at = 0, dur = 360 } = {}) {
+  anim(el, [{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(0.6)', opacity: 0 }], { at, dur, ease: EASE.in, fill: 'forwards' })
+}
+function riseIn(el, { at = 0, dur = 620, dy = 48 } = {}) {
+  anim(el, [{ transform: `translateY(${dy}px)`, opacity: 0 }, { transform: 'translateY(0)', opacity: 1 }], { at, dur, ease: EASE.out })
+}
+function fadeOutScene(at, dur = 500) {
+  anim(stage, [{ opacity: 1 }, { opacity: 0 }], { at, dur, ease: EASE.inOut })
+}
+function shock(x, y, size, at, color = fg) {
+  const r = box(x, y, size, size, 'ring', { color, opacity: 0 })
+  anim(r, [
+    { transform: 'scale(0.55)', opacity: 0, offset: 0 },
+    { transform: 'scale(0.6)', opacity: 0.55, offset: 0.04 },
+    { transform: 'scale(1.6)', opacity: 0, offset: 1 }
+  ], { at, dur: 760, ease: EASE.out })
+}
+function lockup(x, y, size, opts = {}) {
+  const gap = opts.gap ?? size * 0.22
+  const wm = opts.wm ?? size * 0.3
+  const stickerSize = size
+  const g = node('a', { left: '0', top: '0' })
+  const s = box(x, y, stickerSize, stickerSize, 'sticker', {}, g)
+  const t = text(x, y, P.l1, wm, 'wordmark', { color: opts.color || fg }, 'left', g)
+  return { s, t, g }
+}
+
+const scenes = {
+  intro() {
+    const stickerSize = V ? 560 : 440
+    const wmSize = V ? 104 : 118
+    const probe = text(0, 0, P.l1, wmSize, 'wordmark', { visibility: 'hidden' }, 'left')
+    const wmW = probe.getBoundingClientRect().width; probe.parentElement.remove()
+    const gap = 90
+    const groupW = stickerSize + gap + wmW
+    const sx = V ? W / 2 : (W - groupW) / 2 + stickerSize / 2
+    const sy = V ? H * 0.40 : H / 2
+    const s = box(sx, sy, stickerSize, stickerSize, 'sticker')
+    hidden(s)
+    stampIn(s, { at: 80 })
+    shock(sx, sy, stickerSize * 1.25, 440)
+    const tx = V ? W / 2 : sx + stickerSize / 2 + gap
+    const ty = V ? H * 0.40 + stickerSize / 2 + 150 : H / 2 - 40
+    const anchor = V ? 'center' : 'left'
+    const wm = text(tx, ty, P.l1, wmSize, 'wordmark', {}, anchor)
+    const tl = text(tx, ty + wmSize * 0.95, P.tagline, V ? 36 : 40, 'sub', { color: muted }, anchor)
+    hidden(wm); hidden(tl)
+    riseIn(wm, { at: 520 })
+    riseIn(tl, { at: 680, dy: 36 })
+    const ruleColor = P.bg === 'red' ? fg : 'var(--red)'
+    if (V) {
+      const rule = box(W / 2, ty - wmSize * 0.85, 120, 4, '', { background: ruleColor, borderRadius: '2px' })
+      anim(rule, [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], { at: 640, dur: 500 })
+    } else {
+      const rule = box(tx + 60, ty - wmSize * 0.78, 120, 4, '', { background: ruleColor, borderRadius: '2px', transformOrigin: 'left' })
+      anim(rule, [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], { at: 640, dur: 500 })
+    }
+    hold(P.dur || 3000)
+    if (P.exit) {
+      const end = P.dur || 3000
+      anim(stage, [{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(1.06)', opacity: 0 }], { at: end - 480, dur: 480, ease: EASE.in })
+    }
+  },
+
+  sting() {
+    const size = V ? 620 : 520
+    const s = box(W / 2, H / 2, size, size, 'sticker')
+    hidden(s)
+    popIn(s, { at: 40, dur: 620, rot: -14 })
+    shock(W / 2, H / 2, size * 1.25, 360)
+    anim(s, [{ transform: 'rotate(0deg)' }, { transform: 'rotate(-2.5deg)' }, { transform: 'rotate(0deg)' }], { at: 660, dur: 540, ease: EASE.inOut }).composite = 'add'
+    const end = P.dur || 1500
+    hold(end)
+    if (P.exit) popOut(s, { at: end - 360, dur: 360 })
+    if (P.bg !== 'none' && P.exit) fadeOutScene(end - 320, 320)
+  },
+
+  transition() {
+    const D = Math.hypot(W, H)
+    const disc = box(W / 2, H / 2, D, D, '', { background: 'var(--red)', borderRadius: '50%' })
+    const size = V ? 560 : 480
+    const s = box(W / 2, H / 2, size, size, 'sticker')
+    anim(disc, [
+      { transform: 'scale(0)', easing: EASE.in, offset: 0 },
+      { transform: 'scale(1.02)', offset: 0.42 },
+      { transform: 'scale(1.02)', easing: EASE.out, offset: 0.6 },
+      { transform: 'scale(0)', offset: 1 }
+    ], { at: 0, dur: 1000, ease: EASE.linear })
+    anim(s, [
+      { transform: 'scale(0.2) rotate(-20deg)', opacity: 0, easing: EASE.back, offset: 0 },
+      { transform: 'scale(1) rotate(0deg)', opacity: 1, offset: 0.4 },
+      { transform: 'scale(1) rotate(0deg)', opacity: 1, easing: EASE.in, offset: 0.6 },
+      { transform: 'scale(0) rotate(12deg)', opacity: 1, offset: 1 }
+    ], { at: 160, dur: 700, ease: EASE.linear })
+    hold(1000)
+  },
+
+  wipe() {
+    const size = V ? 440 : 400
+    const band = node('fill', { background: 'var(--red)', transformOrigin: 'center' })
+    const s = box(W / 2, H / 2, size, size, 'sticker')
+    const axis = V ? 'Y' : 'X'
+    const span = V ? H : W
+    anim(band, [
+      { transform: `translate${axis}(${span}px) skew${axis}(0deg)`, offset: 0 },
+      { transform: `translate${axis}(0px)`, offset: 0.42 },
+      { transform: `translate${axis}(0px)`, offset: 0.58 },
+      { transform: `translate${axis}(${-span}px)`, offset: 1 }
+    ], { at: 0, dur: 1000, ease: EASE.inOut })
+    anim(s, [
+      { transform: `translate${axis}(${span * 0.9}px) rotate(-10deg)`, opacity: 1, offset: 0 },
+      { transform: `translate${axis}(0px) rotate(0deg)`, opacity: 1, offset: 0.44 },
+      { transform: `translate${axis}(0px) rotate(0deg)`, opacity: 1, offset: 0.56 },
+      { transform: `translate${axis}(${-span * 0.9}px) rotate(10deg)`, opacity: 1, offset: 1 }
+    ], { at: 0, dur: 1000, ease: EASE.inOut })
+    hold(1000)
+  },
+
+  outro() {
+    const end = P.dur || 10000
+    if (V) {
+      const cy = H * 0.36
+      const s = box(W / 2, cy - 230, 360, 360, 'sticker')
+      hidden(s); stampIn(s, { at: 100, from: 1.8, rot: 6 })
+      shock(W / 2, cy - 230, 450, 460)
+      const wm = text(W / 2, cy + 40, P.l1, 92, 'wordmark')
+      const url = text(W / 2, cy + 140, P.url, 46, 'sub')
+      const st = text(W / 2, cy + 215, P.store, 36, 'sub', { color: muted })
+      ;[wm, url, st].forEach((e, i) => { hidden(e); riseIn(e, { at: 560 + i * 120 }) })
+      const pillW = 520, pillH = 108
+      const pill = box(W / 2, H * 0.62, pillW, pillH, 'pill', { background: P.bg === 'red' ? fg : 'var(--red)', color: P.bg === 'red' ? 'var(--red)' : '#fff', padding: '0 40px 0 22px', gap: '22px', opacity: 0 })
+      node('a sticker', { position: 'relative', width: '72px', height: '72px' }, pill)
+      const ct = node('txt sub', { fontSize: '40px', fontWeight: '600' }, pill)
+      ct.textContent = P.cta
+      popIn(pill, { at: 1100, dur: 640, rot: -4 })
+      const breathe = anim(pill, [{ transform: 'scale(1)' }, { transform: 'scale(1.035)' }, { transform: 'scale(1)' }], { at: 2600, dur: 1600, ease: EASE.inOut })
+      breathe.composite = 'add'
+      breathe.effect.updateTiming({ iterations: Math.max(1, Math.floor((end - 2600) / 1600)) })
+    } else {
+      const lx = 160
+      const s = box(lx + 170, H * 0.32, 340, 340, 'sticker')
+      hidden(s); stampIn(s, { at: 100, from: 1.8, rot: 6 })
+      shock(lx + 170, H * 0.32, 420, 460)
+      const k = text(lx, H * 0.56, 'Thanks for watching', 30, 'kicker', { color: muted }, 'left')
+      const wm = text(lx, H * 0.56 + 92, P.l1, 92, 'wordmark', {}, 'left')
+      const url = text(lx, H * 0.56 + 190, P.url, 44, 'sub', {}, 'left')
+      const st = text(lx, H * 0.56 + 262, P.store, 34, 'sub', { color: muted }, 'left')
+      ;[k, wm, url, st].forEach((e, i) => { hidden(e); riseIn(e, { at: 560 + i * 110 }) })
+    }
+    hold(end)
+    if (P.exit) fadeOutScene(end - 600, 600)
+  },
+
+  'lower-third'() {
+    const end = P.dur || 6000
+    const scale = V ? 1.15 : 1.1
+    const h = 150 * scale, badge = 128 * scale
+    const x = V ? 56 : 96
+    const y = V ? H * 0.66 : H - 120 - h / 2
+    const t1 = text(0, 0, P.l1, 46 * scale, 'wordmark', { color: '#fff', visibility: 'hidden' }, 'left')
+    const t2 = text(0, 0, P.l2, 30 * scale, 'sub', { color: 'rgba(255,255,255,0.86)', visibility: 'hidden' }, 'left')
+    const textW = Math.max(t1.getBoundingClientRect().width, t2.getBoundingClientRect().width)
+    t1.parentElement.remove(); t2.parentElement.remove()
+    const padL = badge * 0.72, padR = 44 * scale
+    const tagW = padL + textW + padR
+    const tagX = x + badge * 0.5
+    const wrap = node('a', { left: '0', top: '0' })
+    const tag = box(tagX + tagW / 2, y, tagW, h, 'tag', { background: 'var(--red)', overflow: 'hidden' }, wrap)
+    const inner = node('a', { left: padL + 'px', top: '0', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 10 * scale + 'px' }, tag)
+    const a1 = node('txt wordmark', { fontSize: 46 * scale + 'px', color: '#fff' }, inner); a1.textContent = P.l1
+    const a2 = node('txt sub', { fontSize: 30 * scale + 'px', color: 'rgba(255,255,255,0.86)' }, inner); a2.textContent = P.l2
+    const b = box(x + badge / 2 + 6, y, badge, badge, 'sticker', {}, wrap)
+    hidden(tag); hidden(b); hidden(inner)
+    anim(tag, [{ clipPath: 'inset(0 100% 0 0 round 28px)', opacity: 1 }, { clipPath: 'inset(0 0% 0 0 round 28px)', opacity: 1 }], { at: 120, dur: 620 })
+    anim(inner, [{ transform: 'translateX(-40px)', opacity: 0 }, { transform: 'translateX(0)', opacity: 1 }], { at: 300, dur: 560 })
+    popIn(b, { at: 0, dur: 600, rot: -16 })
+    anim(tag, [{ clipPath: 'inset(0 0% 0 0 round 28px)' }, { clipPath: 'inset(0 100% 0 0 round 28px)' }], { at: end - 520, dur: 440, ease: EASE.in, fill: 'forwards' })
+    anim(inner, [{ opacity: 1 }, { opacity: 0 }], { at: end - 520, dur: 260, ease: EASE.in, fill: 'forwards' })
+    popOut(b, { at: end - 360, dur: 340 })
+    hold(end)
+  },
+
+  cta() {
+    const end = P.dur || 4000
+    const scale = V ? 1.2 : 1
+    const h = 112 * scale, badge = 82 * scale
+    const probe = text(0, 0, P.cta, 42 * scale, 'sub', { fontWeight: '600', visibility: 'hidden' }, 'left')
+    const tw = probe.getBoundingClientRect().width; probe.parentElement.remove()
+    const w = 24 * scale + badge + 22 * scale + tw + 44 * scale
+    const y = V ? H * 0.72 : H - 150
+    const pill = box(W / 2, y, w, h, 'pill', { background: 'var(--red)', color: '#fff', padding: `0 ${44 * scale}px 0 ${24 * scale}px`, gap: 22 * scale + 'px', boxShadow: '0 18px 50px rgba(0,0,0,0.28)' })
+    node('a sticker', { position: 'relative', width: badge + 'px', height: badge + 'px', flex: 'none' }, pill)
+    const ct = node('txt sub', { fontSize: 42 * scale + 'px', fontWeight: '600' }, pill)
+    ct.textContent = P.cta
+    hidden(pill)
+    popIn(pill, { at: 0, dur: 640, rot: -4 })
+    const pulse = anim(pill, [{ transform: 'scale(1)' }, { transform: 'scale(1.04)' }, { transform: 'scale(1)' }], { at: 1000, dur: 1100, ease: EASE.inOut })
+    pulse.composite = 'add'
+    pulse.effect.updateTiming({ iterations: Math.max(1, Math.floor((end - 1000 - 400) / 1100)) })
+    popOut(pill, { at: end - 380, dur: 380 })
+    hold(end)
+  },
+
+  'bg-loop'() {
+    const end = P.dur || 10000
+    const tile = V ? 260 : 300
+    const cols = Math.ceil(W / tile) + 3, rows = Math.ceil(H / tile) + 3
+    const mono = P.bg === 'paper' ? 'mono-ink' : 'mono-white'
+    const alpha = P.bg === 'paper' ? 0.05 : P.bg === 'red' ? 0.09 : 0.055
+    const layer = node('a', { left: -tile * 2 + 'px', top: -tile * 2 + 'px', width: cols * tile + 'px', height: rows * tile + 'px', opacity: String(alpha) })
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const off = r % 2 ? tile / 2 : 0
+      node('a ' + mono, { left: c * tile + off + 'px', top: r * tile + 'px', width: tile * 0.62 + 'px', height: tile * 0.62 + 'px', transform: 'translate(-50%,-50%) rotate(-8deg)', margin: tile / 2 + 'px 0 0 ' + tile / 2 + 'px' }, layer)
+    }
+    anim(layer, [{ transform: 'translate(0,0)' }, { transform: `translate(${tile}px, ${tile * 2}px)` }], { at: 0, dur: end, ease: EASE.linear })
+    const glow = node('fill', { background: P.bg === 'paper' ? 'radial-gradient(ellipse at 50% 40%, rgba(198,1,33,0.07), transparent 60%)' : P.bg === 'red' ? 'radial-gradient(ellipse at 50% 35%, rgba(255,255,255,0.10), transparent 60%)' : 'radial-gradient(ellipse at 50% 35%, rgba(198,1,33,0.22), transparent 62%)' })
+    node('fill', { background: 'radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(0,0,0,' + (P.bg === 'paper' ? 0.06 : 0.35) + ') 100%)' })
+    hold(end)
+  },
+
+  'title-card'() {
+    const size = V ? 150 : 130
+    const x = V ? W / 2 : 120 + size / 2
+    const y = V ? H - 220 : H - 110 - size / 2
+    const s = box(x, y, size, size, 'sticker')
+    if (!V) text(x + size / 2 + 26, y, P.l1, 48, 'wordmark', {}, 'left')
+    else text(W / 2, y + size / 2 + 56, P.l1, 44, 'wordmark')
+    if (P.title) text(W / 2, H * 0.44, P.title, V ? 96 : 120, 'wordmark')
+    hold(1)
+  },
+
+  thumbnail() {
+    node('fill', { background: 'radial-gradient(ellipse at 78% 50%, rgba(198,1,33,0.35), transparent 55%)' })
+    const s = box(W * 0.76, H * 0.52, 760, 760, 'sticker', { filter: 'drop-shadow(0 40px 80px rgba(0,0,0,0.45))', transform: 'rotate(-6deg)' })
+    text(100, H - 90, P.url, 44, 'sub', { color: muted }, 'left')
+    hold(1)
+  },
+
+  lockup() {
+    const size = P.ar === 'lockup-v' ? 760 : 560
+    if (P.ar === 'lockup-v') {
+      box(W / 2, 460, size, size, 'sticker')
+      text(W / 2, 1050, P.l1, 190, 'wordmark', { color: P.bg === 'none' && q.get('fg') === 'white' ? '#fff' : (q.get('fg') === 'white' ? '#fff' : '#1C1B1B') })
+      text(W / 2, 1270, P.tagline, 64, 'sub', { color: q.get('fg') === 'white' ? 'rgba(255,255,255,0.75)' : 'rgba(28,27,27,0.62)' })
+    } else {
+      box(120 + size / 2, H / 2, size, size, 'sticker')
+      text(120 + size + 70, H / 2 - 20, P.l1, 230, 'wordmark', { color: q.get('fg') === 'white' ? '#fff' : '#1C1B1B' }, 'left')
+    }
+    hold(1)
+  },
+
+  'endscreen-guide'() {
+    const g = node('fill', { background: 'transparent' })
+    const zone = box(W * 0.69, H / 2, W * 0.56, H * 0.72, '', { border: '4px dashed rgba(255,255,255,0.7)', borderRadius: '24px', boxSizing: 'border-box' })
+    text(W * 0.69, H * 0.12, 'Place YouTube end-screen elements here', 36, 'sub', { color: '#fff' })
+    const left = box(W * 0.21, H / 2, W * 0.36, H * 0.72, '', { border: '4px dashed rgba(198,1,33,0.9)', borderRadius: '24px', boxSizing: 'border-box' })
+    text(W * 0.21, H * 0.12, 'Branding stays here', 36, 'sub', { color: '#fff' })
+    hold(1)
+  }
+}
+
+scenes[P.scene]()
+for (const a of document.getAnimations()) a.pause()
+window.__duration = total
+window.__seek = (ms) => { for (const a of document.getAnimations()) { a.pause(); a.currentTime = ms } }
+window.__ready = Promise.all([document.fonts.ready, new Promise(r => requestAnimationFrame(() => r()))])
+</script>
+</body>
+</html>
